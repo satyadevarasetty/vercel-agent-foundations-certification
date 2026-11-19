@@ -1,19 +1,16 @@
+import { adminChatFlow } from "@/lib/workflows/admin-chat-flow";
 import { createModelCallToUIChunkTransform } from "@ai-sdk/workflow";
-import { createUIMessageStreamResponse, type UIMessage } from "ai";
+import { createUIMessageStreamResponse } from "ai";
+import type { UIMessage } from "ai";
 import { start } from "workflow/api";
-import { chatFlow } from "@/lib/workflows/chat-flow";
 
-export async function POST(request: Request) {
-  const { messages } = (await request.json()) as { messages: UIMessage[] };
-
-  const run = await start(chatFlow, [messages]);
-
-  const readable = run
-    .getReadable({ startIndex: 0 })
-    .pipeThrough(createModelCallToUIChunkTransform({ uiStartIndex: 0 }));
-
+export async function POST(req: Request) {
+  const { messages }: { messages: UIMessage[] } = await req.json();
+  const run = await start(adminChatFlow, [messages]);
   return createUIMessageStreamResponse({
-    stream: readable,
-    headers: { "x-workflow-run-id": run.runId },
+    stream: run.readable.pipeThrough(createModelCallToUIChunkTransform()),
+    headers: {
+      "x-workflow-run-id": run.runId,
+    },
   });
 }
